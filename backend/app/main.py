@@ -1,10 +1,31 @@
 # app/main.py
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.v1.api import api_router
 from app.core.config import settings
+from app.core.database import engine
+
+# Import all models to register them with SQLAlchemy
+from app.models.user import User
+from app.models.project import Project
+from app.models.task import Task
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+# Create tables in the database
+def create_tables():
+    logger.info("Creating database tables")
+    from app.core.database import Base
+
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created")
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -41,6 +62,14 @@ def root():
 def health_check():
     """Health check endpoint for monitoring and load balancers"""
     return {"status": "healthy"}
+
+
+# Startup event to initialize database
+@app.on_event("startup")
+def startup_event():
+    logger.info("Initializing service")
+    create_tables()
+    logger.info("Service started")
 
 
 if __name__ == "__main__":

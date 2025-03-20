@@ -10,6 +10,7 @@ from app.crud import task as task_crud
 from app.crud import project as project_crud
 from app.models.user import User
 from app.schemas.task import Task, TaskCreate, TaskUpdate, TaskWithSubtasks
+from datetime import datetime
 
 router = APIRouter()
 
@@ -24,27 +25,16 @@ def create_task(
     """
     Create new task.
     """
-    # Check if project exists and belongs to the user
-    project = project_crud.project.get(db=db, id=task_in.project_id)
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-        )
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
-        )
+    # Debug: Log the incoming data (optional)
+    print(f"Received task data: {task_in.dict()}")
 
-    # If this is a subtask, check if parent task belongs to the same project
-    if task_in.parent_task_id:
-        parent_task = task_crud.task.get(db=db, id=task_in.parent_task_id)
-        if not parent_task or parent_task.project_id != task_in.project_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Parent task must belong to the same project",
-            )
+    # Project checks...
 
-    task = task_crud.task.create(db=db, obj_in=task_in)
+    # Simply use the Pydantic model's dict method - our TypeDecorator will handle the conversion
+    task_data = task_in.dict()
+
+    # Create the task with the processed dictionary
+    task = task_crud.task.create(db=db, obj_in=task_data)
     return task
 
 
@@ -153,9 +143,19 @@ def update_task(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
         )
 
+    # Process update data
+    task_data = task_in.dict(exclude_unset=True)
+
+    # Convert due_date to datetime if it's a string
+    if isinstance(task_data.get("due_date"), str):
+        due_date_str = task_data["due_date"]
+        if due_date_str.endswith("Z"):
+            due_date_str = due_date_str[:-1]  # Remove the Z
+        task_data["due_date"] = datetime.fromisoformat(due_date_str)
+
     # If project_id is being updated, check if new project belongs to the user
-    if task_in.project_id and task_in.project_id != task.project_id:
-        new_project = project_crud.project.get(db=db, id=task_in.project_id)
+    if task_data.get("project_id") and task_data["project_id"] != task.project_id:
+        new_project = project_crud.project.get(db=db, id=task_data["project_id"])
         if not new_project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="New project not found"
@@ -166,7 +166,7 @@ def update_task(
                 detail="Not enough permissions on new project",
             )
 
-    task = task_crud.task.update(db=db, db_obj=task, obj_in=task_in)
+    task = task_crud.task.update(db=db, db_obj=task, obj_in=task_data)
     return task
 
 

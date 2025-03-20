@@ -1,23 +1,62 @@
 # app/core/database.py
-from supabase import create_client, Client
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.types import TypeDecorator, CHAR
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 
 from app.core.config import settings
 
-# Create Supabase client for API access
-supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
-# Create SQLAlchemy engine for direct database access
-# SSL required for Supabase PostgreSQL
+# Fix for UUID type working with SQLite
+class GUID(TypeDecorator):
+    """Platform-independent GUID type.
+    Uses PostgreSQL's UUID type, otherwise uses
+    CHAR(32), storing as stringified hex values.
+    """
+
+    impl = CHAR
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(UUID())
+        else:
+            return dialect.type_descriptor(CHAR(32))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        elif dialect.name == "postgresql":
+            return str(value)
+        else:
+            if not isinstance(value, uuid.UUID):
+                return "%.32x" % uuid.UUID(value).int
+            else:
+                # hexstring
+                return "%.32x" % value.int
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        else:
+            if not isinstance(value, uuid.UUID):
+                value = uuid.UUID(value)
+            return value
+
+
+# Create SQLite engine with fixed connection parameters
 engine = create_engine(
-    str(settings.SQLALCHEMY_DATABASE_URI),
-    pool_pre_ping=True,  # Added for connection health checks
-    connect_args={"sslmode": "require"},
+    settings.SQLALCHEMY_DATABASE_URI,
+    # required for sqlite
+    connect_args={"check_same_thread": False},
 )
+
+# Create sessionmaker
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Create declarative base
 Base = declarative_base()
 
 
