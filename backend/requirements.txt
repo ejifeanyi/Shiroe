@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+pydantic
+sqlalchemy
+alembic
+psycopg2-binary
+python-jose
+passlib
+bcrypt
+python-multipart
+email-validator
+starlette
+python-dotenv
+requests
+tenacity
+itsdangerous
+supabase
