@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
-from typing import Any, Union
+from typing import Any, Union, Optional
+from pydantic import ValidationError
 
 from jose import jwt
 from passlib.context import CryptContext
@@ -22,7 +23,7 @@ def create_access_token(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
     to_encode = {"exp": expire, "sub": str(subject)}
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
 
@@ -38,3 +39,19 @@ def get_password_hash(password: str) -> str:
     Hash a password
     """
     return pwd_context.hash(password)
+
+
+
+def verify_reset_token(token: str) -> Optional[str]:
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        if payload.get("reset") is not True:
+            return None
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+        return user_id
+    except (jwt.JWTError, ValidationError):
+        return None

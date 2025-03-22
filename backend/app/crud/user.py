@@ -43,6 +43,14 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         if not verify_password(password, user.password_hash):
             return None
         return user
+    
+    def update_password(self, db: Session, *, user: User, new_password: str) -> User:
+        hashed_password = get_password_hash(new_password)
+        setattr(user, "password_hash", hashed_password)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
 
 
 user = CRUDUser(User)
