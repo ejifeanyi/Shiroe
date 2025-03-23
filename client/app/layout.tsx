@@ -8,6 +8,7 @@ const manrope = Manrope({
 	subsets: ["latin"],
 });
 
+
 export const metadata: Metadata = {
 	title: "shiroe",
 	description:
@@ -21,7 +22,7 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang="en" suppressHydrationWarning>
-			<body className={`${manrope.variable} antialiased`}>
+			<body className={`${manrope.variable} font-sans antialiased`}>
 				<Providers>{children}</Providers>
 			</body>
 		</html>
