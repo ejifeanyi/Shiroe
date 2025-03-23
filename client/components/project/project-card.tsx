@@ -1,6 +1,10 @@
-// components/projects/ProjectCard.tsx
 import { format } from "date-fns";
-import { CalendarIcon, CheckCircle2Icon, CircleIcon } from "lucide-react";
+import {
+	CalendarIcon,
+	CheckCircle2Icon,
+	CircleIcon,
+	MoreVerticalIcon,
+} from "lucide-react";
 
 import {
 	Card,
@@ -12,13 +16,27 @@ import {
 import { Project } from "@/types/project";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 interface ProjectCardProps {
 	project: Project;
 	onClick: () => void;
+	onEdit: () => void;
+	onDelete: () => void;
 }
 
-export default function ProjectCard({ project, onClick }: ProjectCardProps) {
+export default function ProjectCard({
+	project,
+	onClick,
+	onEdit,
+	onDelete,
+}: ProjectCardProps) {
 	const completionPercentage =
 		project.total_tasks && project.total_tasks > 0
 			? Math.round(((project.completed_tasks || 0) * 100) / project.total_tasks)
@@ -29,17 +47,46 @@ export default function ProjectCard({ project, onClick }: ProjectCardProps) {
 	const isOverdue =
 		hasDeadline && deadlineDate! < new Date() && completionPercentage < 100;
 
+	const handleCardClick = (e: React.MouseEvent) => {
+		// Prevent card click when clicking on dropdown
+		if (!(e.target as HTMLElement).closest("[data-dropdown]")) {
+			onClick();
+		}
+	};
+
 	return (
 		<Card
-			className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden h-full flex flex-col"
-			onClick={onClick}
+			className="hover:shadow-md transition-shadow overflow-hidden h-full flex flex-col group relative"
+			onClick={handleCardClick}
 		>
-			<CardHeader className="pb-3">
+			<div
+				className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+				data-dropdown
+			>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button variant="ghost" size="icon" className="h-8 w-8">
+							<MoreVerticalIcon size={16} />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={onDelete}
+							className="text-destructive focus:text-destructive"
+						>
+							Delete
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</div>
+
+			<CardHeader className="pb-3 cursor-pointer">
 				<CardTitle className="truncate">{project.name}</CardTitle>
 			</CardHeader>
-			<CardContent className="flex-grow pb-3">
+			<CardContent className="flex-grow pb-3 cursor-pointer">
 				{project.description ? (
-					<p className="text-muted-foreground text-sm line-clamp-2 truncate">
+					<p className="text-muted-foreground text-sm line-clamp-2">
 						{project.description}
 					</p>
 				) : (
@@ -56,7 +103,7 @@ export default function ProjectCard({ project, onClick }: ProjectCardProps) {
 					<Progress value={completionPercentage} className="h-2" />
 				</div>
 			</CardContent>
-			<CardFooter className="pt-0 flex flex-wrap gap-2">
+			<CardFooter className="pt-0 flex flex-wrap gap-2 cursor-pointer">
 				{hasDeadline && (
 					<Badge
 						variant={isOverdue ? "destructive" : "secondary"}

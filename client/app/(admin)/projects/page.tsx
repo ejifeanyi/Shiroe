@@ -2,28 +2,38 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { PlusIcon } from "lucide-react";
-
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Project } from "@/types/project";
-import { toast } from "sonner";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import ProjectCard from "@/components/project/project-card";
+import UpdateProjectModal from "@/components/project/update-project-modal";
 import CreateProjectModal from "@/components/project/create-project-modal";
 
 export default function ProjectsPage() {
 	const router = useRouter();
 	const [projects, setProjects] = useState<Project[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
-	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+	const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+	const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+	const [isDeleting, setIsDeleting] = useState(false);
 
-	useEffect(() => {
-		fetchProjects();
-	}, []);
-
-	const fetchProjects = async () => {
+	const fetchProjects = useCallback(async () => {
 		setIsLoading(true);
 		try {
 			const token = Cookies.get("token");
@@ -48,12 +58,59 @@ export default function ProjectsPage() {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [router]);
+
+	useEffect(() => {
+		fetchProjects();
+	}, [fetchProjects]);
 
 	const handleCreateSuccess = (newProject: Project) => {
-		setIsModalOpen(false);
+		setIsCreateModalOpen(false);
 		toast("Project created successfully!");
 		router.push(`/projects/${newProject.id}`);
+	};
+
+	const handleUpdateSuccess = (updatedProject: Project) => {
+		setIsUpdateModalOpen(false);
+		setProjects(
+			projects.map((p) => (p.id === updatedProject.id ? updatedProject : p))
+		);
+	};
+
+	const handleEditProject = (project: Project) => {
+		setSelectedProject(project);
+		setIsUpdateModalOpen(true);
+	};
+
+	const handleDeleteConfirm = (project: Project) => {
+		setSelectedProject(project);
+		setIsDeleteDialogOpen(true);
+	};
+
+	const handleDeleteProject = async () => {
+		if (!selectedProject) return;
+
+		setIsDeleting(true);
+		try {
+			const token = Cookies.get("token");
+			await axios.delete(
+				`${process.env.NEXT_PUBLIC_API_URL}/projects/${selectedProject.id}`,
+				{
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
+				}
+			);
+
+			setProjects(projects.filter((p) => p.id !== selectedProject.id));
+			toast("Project deleted successfully");
+		} catch (error) {
+			console.error("Failed to delete project:", error);
+			toast("Failed to delete project. Please try again.");
+		} finally {
+			setIsDeleting(false);
+			setIsDeleteDialogOpen(false);
+		}
 	};
 
 	return (
@@ -61,7 +118,7 @@ export default function ProjectsPage() {
 			<div className="flex justify-between items-center mb-8">
 				<h1 className="text-3xl font-bold">My Projects</h1>
 				<Button
-					onClick={() => setIsModalOpen(true)}
+					onClick={() => setIsCreateModalOpen(true)}
 					className="flex items-center gap-2"
 				>
 					<PlusIcon size={16} />
@@ -85,7 +142,7 @@ export default function ProjectsPage() {
 						Create your first project to get started organizing your tasks
 					</p>
 					<Button
-						onClick={() => setIsModalOpen(true)}
+						onClick={() => setIsCreateModalOpen(true)}
 						className="flex items-center gap-2"
 					>
 						<PlusIcon size={16} />
@@ -99,16 +156,52 @@ export default function ProjectsPage() {
 							key={project.id}
 							project={project}
 							onClick={() => router.push(`/projects/${project.id}`)}
+							onEdit={() => handleEditProject(project)}
+							onDelete={() => handleDeleteConfirm(project)}
 						/>
 					))}
 				</div>
 			)}
 
 			<CreateProjectModal
-				isOpen={isModalOpen}
-				onClose={() => setIsModalOpen(false)}
+				isOpen={isCreateModalOpen}
+				onClose={() => setIsCreateModalOpen(false)}
 				onSuccess={handleCreateSuccess}
 			/>
+
+			<UpdateProjectModal
+				project={selectedProject}
+				isOpen={isUpdateModalOpen}
+				onClose={() => setIsUpdateModalOpen(false)}
+				onSuccess={handleUpdateSuccess}
+			/>
+
+			<AlertDialog
+				open={isDeleteDialogOpen}
+				onOpenChange={setIsDeleteDialogOpen}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Are you sure?</AlertDialogTitle>
+						<AlertDialogDescription>
+							This action cannot be undone. This will permanently delete the
+							project
+							{selectedProject && ` "${selectedProject.name}"`} and all
+							associated tasks.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={handleDeleteProject}
+							disabled={isDeleting}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							{isDeleting ? "Deleting..." : "Delete"}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }
