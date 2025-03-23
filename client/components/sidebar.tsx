@@ -1,6 +1,10 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import Cookies from "js-cookie";
+
 import {
 	LayoutDashboard,
 	FolderKanban,
@@ -28,11 +32,11 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
 	const pathname = usePathname();
+	const router = useRouter();
 	const [recentProjects, setRecentProjects] = useState<Project[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
-		// Fetch recent projects from your API
 		const fetchProjects = async () => {
 			try {
 				const response = await fetch(
@@ -49,6 +53,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
 
 		fetchProjects();
 	}, []);
+
+	const handleLogout = () => {
+		localStorage.removeItem("token");
+		Cookies.remove("token");
+		router.push("/login");
+	};
 
 	const navItems = [
 		{ icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -153,6 +163,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
 					variant="secondary"
 					size={collapsed ? "icon" : "default"}
 					className={cn("w-full justify-start", collapsed && "justify-center")}
+					onClick={() => handleLogout()}
 				>
 					<LogOut size={18} className={collapsed ? "" : "mr-2"} />
 					{!collapsed && "Logout"}

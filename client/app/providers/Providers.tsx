@@ -1,6 +1,5 @@
 import { AuthProvider } from "@/context/auth-context";
 import ToastProvider from "./toast-provider";
-import PageLayout from "@/components/page-layout";
 import { ThemeProvider } from "./theme-provider";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -12,11 +11,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 			disableTransitionOnChange
 		>
 			<AuthProvider>
-				<ToastProvider>
-					<PageLayout>
-						{children}
-					</PageLayout>
-				</ToastProvider>
+				<ToastProvider>{children}</ToastProvider>
 			</AuthProvider>
 		</ThemeProvider>
 	);

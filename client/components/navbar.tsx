@@ -1,4 +1,9 @@
-import React from "react";
+"use client";
+
+import { useRouter } from "next/navigation";
+import Cookies from "js-cookie";
+import { ThemeToggle } from "./theme-toggle";
+
 import { Search, Bell, Calendar, User, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +16,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ThemeToggle } from "./theme-toggle";
 
 interface NavbarProps {
 	userName?: string;
@@ -22,6 +26,14 @@ const Navbar: React.FC<NavbarProps> = ({
 	userName = "John Doe",
 	userEmail = "john.doe@example.com",
 }) => {
+	const router = useRouter();
+
+	const handleLogout = () => {
+		localStorage.removeItem("token");
+		Cookies.remove("token");
+		router.push("/login");
+	};
+
 	return (
 		<header className="h-16 border-b bg-card flex items-center px-4 sticky top-0 z-30">
 			<div className="w-full flex items-center justify-between">
@@ -97,7 +109,10 @@ const Navbar: React.FC<NavbarProps> = ({
 								<span>Settings</span>
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
-							<DropdownMenuItem className="text-destructive focus:text-destructive">
+							<DropdownMenuItem
+								className="text-destructive focus:text-destructive"
+								onClick={() => handleLogout()}
+							>
 								<LogOut className="mr-2 h-4 w-4" />
 								<span>Logout</span>
 							</DropdownMenuItem>
