@@ -4,7 +4,15 @@ import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { ThemeToggle } from "./theme-toggle";
 
-import { Search, Bell, Calendar, User, Settings, LogOut } from "lucide-react";
+import {
+	Search,
+	Bell,
+	Calendar,
+	User,
+	Settings,
+	LogOut,
+	ChevronDown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -88,6 +96,7 @@ const Navbar: React.FC<NavbarProps> = ({
 									</AvatarFallback>
 								</Avatar>
 								<span className="hidden md:inline">{userName}</span>
+								<ChevronDown />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">

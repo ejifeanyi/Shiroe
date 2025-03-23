@@ -1,7 +1,7 @@
 import { DashboardData, AnalyticsData } from "@/types/dashboard";
 import Cookies from "js-cookie";
 
-const API_BASE_URL = "http://localhost:8000/api/v1";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
  * Helper function to create headers with authentication token
@@ -20,24 +20,26 @@ const getAuthHeaders = () => {
 };
 
 export async function fetchDashboardData(): Promise<DashboardData> {
-    try {
-        const response = await fetch(`${API_BASE_URL}/dashboard/`, {
-            method: 'GET',
-            credentials: 'include',
-            headers: getAuthHeaders(),
-        });
+	try {
+		const response = await fetch(`${API_BASE_URL}/dashboard/`, {
+			method: "GET",
+			credentials: "include",
+			headers: getAuthHeaders(),
+		});
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error("Server error response:", errorText);
-            throw new Error(`Failed to fetch dashboard data: ${response.status} ${response.statusText}`);
-        }
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error("Server error response:", errorText);
+			throw new Error(
+				`Failed to fetch dashboard data: ${response.status} ${response.statusText}`
+			);
+		}
 
-        return response.json();
-    } catch (error) {
-        console.error("Dashboard data fetch error:", error);
-        throw error;
-    }
+		return response.json();
+	} catch (error) {
+		console.error("Dashboard data fetch error:", error);
+		throw error;
+	}
 }
 
 export async function fetchAnalyticsData(
