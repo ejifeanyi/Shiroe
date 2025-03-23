@@ -8,11 +8,6 @@ from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.database import engine
 
-# Import all models to register them with SQLAlchemy
-from app.models.user import User
-from app.models.project import Project
-from app.models.task import Task
-
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,10 +32,11 @@ app = FastAPI(
 # Set up CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Add session middleware

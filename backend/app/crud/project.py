@@ -1,7 +1,6 @@
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.crud.base import CRUDBase

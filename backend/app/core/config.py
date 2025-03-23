@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # API Settings
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Shiroe"
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8080"]
+    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
 
     # Security
     SECRET_KEY: str = os.getenv(
