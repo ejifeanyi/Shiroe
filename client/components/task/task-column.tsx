@@ -12,6 +12,7 @@ interface TaskColumnProps {
 	title: string;
 	tasks: Task[];
 	color: string;
+	activeId: string | null;
 	onTaskEdit: (task: Task) => void;
 	onTaskDelete: (taskId: string) => void;
 }

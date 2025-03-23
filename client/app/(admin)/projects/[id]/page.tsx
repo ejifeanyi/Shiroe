@@ -502,6 +502,7 @@ export default function ProjectTasksPage() {
 									title={column.title}
 									tasks={tasks[column.id]}
 									color={column.id}
+									activeId={activeId}
 									onTaskEdit={openEditTaskModal}
 									onTaskDelete={handleDeleteTask}
 								/>

@@ -39,20 +39,23 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
 	useEffect(() => {
 		const fetchProjects = async () => {
 			try {
-				const token = Cookies.get("token")
+				const token = Cookies.get("token");
 
 				if (!token) {
 					console.error("No token found in cookies");
 					throw new Error("Not authenticated");
 				}
 
-				const response = await fetch("http://localhost:8000/api/v1/projects/", {
-					method: "GET",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-				});
+				const response = await fetch(
+					`${process.env.NEXT_PUBLIC_API_URL}/projects/?limit=10`,
+					{
+						method: "GET",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
+					}
+				);
 
 				if (!response.ok) {
 					throw new Error("Failed to fetch projects");
@@ -177,7 +180,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
 
 			<div className="p-3 mt-auto">
 				<Button
-					variant="secondary"
+					variant="ghost"
 					size={collapsed ? "icon" : "default"}
 					className={cn("w-full justify-start", collapsed && "justify-center")}
 					onClick={() => handleLogout()}
