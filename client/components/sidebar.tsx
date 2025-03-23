@@ -39,10 +39,27 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
 	useEffect(() => {
 		const fetchProjects = async () => {
 			try {
-				const response = await fetch(
-					"http://localhost:8000/api/v1/projects?limit=5"
-				);
+				const token = Cookies.get("token")
+
+				if (!token) {
+					console.error("No token found in cookies");
+					throw new Error("Not authenticated");
+				}
+
+				const response = await fetch("http://localhost:8000/api/v1/projects/", {
+					method: "GET",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
+				});
+
+				if (!response.ok) {
+					throw new Error("Failed to fetch projects");
+				}
+
 				const data = await response.json();
+				console.log(data);
 				setRecentProjects(data);
 			} catch (error) {
 				console.error("Error fetching projects:", error);
