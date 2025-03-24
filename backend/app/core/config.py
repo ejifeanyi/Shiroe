@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     # Default to SQLite for development
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./shiroe.db")
     SQLALCHEMY_DATABASE_URI: str = DATABASE_URL
+
+    TIMEZONE: str = "UTC"
     
     # Email settings with updated field names
     MAIL_USERNAME: str = os.getenv("MAIL_USERNAME", "")
