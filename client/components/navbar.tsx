@@ -2,46 +2,20 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { ThemeToggle } from "./theme-toggle";
 import { formatDistanceToNow } from "date-fns";
 
-import {
-	Search,
-	Bell,
-	User,
-	Settings,
-	LogOut,
-	ChevronDown,
-	Check,
-	AlertCircle,
-	Clock,
-	Info,
-} from "lucide-react";
+import { Search, Bell, User, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-
 import { Badge } from "@/components/ui/badge";
 import { useNotifications } from "@/context/notification-context";
-
-interface NavbarProps {
-	userName?: string;
-	userEmail?: string;
-}
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 interface Notification {
 	id: string;
@@ -57,28 +31,19 @@ interface NotificationItemProps {
 	onRead: (id: string) => void;
 }
 
-const NotificationItem = ({ notification, onRead }: NotificationItemProps) => {
-	interface NotificationType {
-		type:
-			| "deadline_approaching"
-			| "task_assigned"
-			| "status_change"
-			| "priority_change"
-			| string;
-	}
-
-	const getIcon = (type: NotificationType["type"]) => {
+const NotificationItem = ({ notification }: NotificationItemProps) => {
+	const getIcon = (type: string) => {
 		switch (type) {
 			case "deadline_approaching":
-				return <Clock className="h-4 w-4 text-orange-500" />;
+				return <Calendar className="h-4 w-4 text-orange-500" />;
 			case "task_assigned":
-				return <Info className="h-4 w-4 text-blue-500" />;
+				return <User className="h-4 w-4 text-blue-500" />;
 			case "status_change":
-				return <Info className="h-4 w-4 text-green-500" />;
+				return <User className="h-4 w-4 text-green-500" />;
 			case "priority_change":
-				return <AlertCircle className="h-4 w-4 text-red-500" />;
+				return <Calendar className="h-4 w-4 text-red-500" />;
 			default:
-				return <Info className="h-4 w-4" />;
+				return <User className="h-4 w-4" />;
 		}
 	};
 
@@ -105,26 +70,12 @@ const NotificationItem = ({ notification, onRead }: NotificationItemProps) => {
 						</p>
 					</div>
 				</div>
-				{!notification.isRead && (
-					<Button
-						variant="ghost"
-						size="sm"
-						className="h-7 w-7 p-0"
-						onClick={() => onRead(notification.id)}
-					>
-						<Check className="h-4 w-4" />
-						<span className="sr-only">Mark as read</span>
-					</Button>
-				)}
 			</div>
 		</div>
 	);
 };
 
-const Navbar: React.FC<NavbarProps> = ({
-	userName = "John Doe",
-	userEmail = "john.doe@example.com",
-}) => {
+const Navbar: React.FC = () => {
 	const router = useRouter();
 	const {
 		notifications,
@@ -132,37 +83,55 @@ const Navbar: React.FC<NavbarProps> = ({
 		markNotificationAsRead,
 		markAllNotificationsAsRead,
 	} = useNotifications();
-	const [isOpen, setIsOpen] = useState(false);
+	const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+	const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+	const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
-	const handleLogout = () => {
-		localStorage.removeItem("token");
-		Cookies.remove("token");
-		router.push("/login");
-	};
-
-	const handleMarkAllAsRead = () => {
-		markAllNotificationsAsRead();
+	const handleDateSelect = (date: Date | undefined) => {
+		setSelectedDate(date);
+		// TODO: Implement task fetching for the selected date
+		console.log("Selected date:", date);
 	};
 
 	return (
 		<header className="sticky top-0 z-40 border-b bg-background">
-			<div className="container flex h-16 items-center justify-end py-4">
-				<div className="flex items-center gap-4">
-					<form className="hidden lg:block">
-						<div className="relative">
-							<Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-							<Input
-								type="search"
-								placeholder="Search..."
-								className="w-[200px] pl-8 bg-background"
-							/>
-						</div>
-					</form>
+			<div className="flex items-center justify-between h-16 px-6 py-4">
+				<div className="relative">
+					<Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+					<Input
+						type="search"
+						placeholder="Search..."
+						className="w-[400px] pl-8 bg-background"
+					/>
+				</div>
 
-					<Popover open={isOpen} onOpenChange={setIsOpen}>
+				<div className="flex items-center gap-4">
+					<Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+						<PopoverTrigger asChild>
+							<Button variant="ghost" size="icon" aria-label="Open calendar">
+								<Calendar className="h-5 w-5" />
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent className="w-auto p-0" align="start">
+							<CalendarComponent
+								mode="single"
+								selected={selectedDate}
+								onSelect={(date) => {
+									handleDateSelect(date);
+									setIsCalendarOpen(false);
+								}}
+								className="rounded-md border shadow"
+							/>
+						</PopoverContent>
+					</Popover>
+
+					<Popover
+						open={isNotificationOpen}
+						onOpenChange={setIsNotificationOpen}
+					>
 						<PopoverTrigger asChild>
 							<Button
-								variant="outline"
+								variant="ghost"
 								size="icon"
 								className="relative"
 								aria-label="Open notifications"
@@ -189,7 +158,7 @@ const Navbar: React.FC<NavbarProps> = ({
 										variant="ghost"
 										size="sm"
 										className="h-8 text-xs"
-										onClick={handleMarkAllAsRead}
+										onClick={markAllNotificationsAsRead}
 									>
 										Mark all as read
 									</Button>
@@ -214,47 +183,14 @@ const Navbar: React.FC<NavbarProps> = ({
 						</PopoverContent>
 					</Popover>
 
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button variant="outline" className="gap-2">
-								<Avatar className="h-8 w-8">
-									<AvatarImage src="" alt={userName} />
-									<AvatarFallback>
-										{userName
-											.split(" ")
-											.map((n) => n[0])
-											.join("")}
-									</AvatarFallback>
-								</Avatar>
-								{userName}
-								<ChevronDown className="h-4 w-4 text-muted-foreground" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end">
-							<DropdownMenuLabel>
-								<div className="flex flex-col space-y-1">
-									<p className="text-sm font-medium leading-none">{userName}</p>
-									<p className="text-xs leading-none text-muted-foreground">
-										{userEmail}
-									</p>
-								</div>
-							</DropdownMenuLabel>
-							<DropdownMenuSeparator />
-							<DropdownMenuItem>
-								<User className="mr-2 h-4 w-4" />
-								Profile
-							</DropdownMenuItem>
-							<DropdownMenuItem>
-								<Settings className="mr-2 h-4 w-4" />
-								Settings
-							</DropdownMenuItem>
-							<DropdownMenuSeparator />
-							<DropdownMenuItem onClick={handleLogout}>
-								<LogOut className="mr-2 h-4 w-4" />
-								Logout
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={() => router.push("/profile")}
+						aria-label="Go to profile"
+					>
+						<User className="h-5 w-5" />
+					</Button>
 
 					<ThemeToggle />
 				</div>

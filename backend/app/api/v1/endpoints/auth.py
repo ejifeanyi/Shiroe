@@ -12,7 +12,7 @@ from app.core.security import create_access_token, verify_reset_token
 from app.crud import user as user_crud
 from app.models.user import User
 from app.schemas.token import Token
-from app.schemas.user import User as UserSchema, UserCreate
+from app.schemas.user import UserOut as UserSchema, UserCreate
 from app.schemas.email import PasswordResetRequest
 from app.utils.email import send_reset_password_email
 
