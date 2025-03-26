@@ -44,16 +44,13 @@ class CRUDProject(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
 
         result = []
         for project in projects:
-            # Count total tasks
             total_tasks = db.query(Task).filter(Task.project_id == project.id).count()
-            # Count completed tasks
             completed_tasks = (
                 db.query(Task)
                 .filter(Task.project_id == project.id, Task.status == TaskStatus.DONE)
                 .count()
             )
 
-            # Create project dict with counts
             project_data = {
                 **project.__dict__,
                 "total_tasks": total_tasks,

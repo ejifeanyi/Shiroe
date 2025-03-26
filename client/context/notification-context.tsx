@@ -1,7 +1,7 @@
 // contexts/NotificationContext.tsx
 "use client";
 
-import { getNotifications, markAllAsRead, markAsRead } from "@/services/notification_service";
+import { getNotifications, markAllAsRead, markAsRead } from "@/services/notification-service";
 import React, {
 	createContext,
 	useContext,

@@ -1,6 +1,7 @@
 # app/main.py
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, Depends
+from app.websockets.notification_handler import websocket_notification_endpoint
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -8,6 +9,8 @@ from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.database import engine
 from app.core.scheduler import setup_scheduler
+from app.models.user import User
+from app.api.deps import get_current_user
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -45,6 +48,14 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+@app.websocket("/ws/notifications")
+async def websocket_notifications(
+    websocket: WebSocket, 
+    token: str, 
+    current_user: User = Depends(get_current_user)
+):
+    await websocket_notification_endpoint(websocket, token, current_user)
 
 
 @app.get("/")
