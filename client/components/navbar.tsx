@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "./theme-toggle";
+
 import { formatDistanceToNow } from "date-fns";
 
 import { Search, Bell, User, Calendar } from "lucide-react";
@@ -16,6 +17,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useNotifications } from "@/context/notification-context";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+
+import PriorityTasksButton from "./priority-task-button";
 
 interface Notification {
 	id: string;
@@ -106,6 +109,7 @@ const Navbar: React.FC = () => {
 				</div>
 
 				<div className="flex items-center gap-4">
+					<PriorityTasksButton />
 					<Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
 						<PopoverTrigger asChild>
 							<Button variant="ghost" size="icon" aria-label="Open calendar">
