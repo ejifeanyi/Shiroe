@@ -4,9 +4,9 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.models.notification import NotificationType
-from app.models.task import Task, TaskPriority, TaskStatus
+from app.models.task import Task, TaskStatus
 from app.schemas.notification import NotificationCreate
-from app.crud import notification as notification_crud, task as task_crud
+from app.crud import notification as notification_crud
 
 
 def create_task_deadline_notification(

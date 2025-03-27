@@ -1,6 +1,7 @@
 from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from app.core.rate_limiting import ip_limiter
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -18,9 +19,11 @@ router = APIRouter()
 
 
 @router.post("/", response_model=Project)
+@ip_limiter.limit("20/hour")
 def create_project(
     *,
     project_in: ProjectCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
@@ -72,10 +75,12 @@ def read_project(
 
 
 @router.put("/{project_id}", response_model=Project)
+@ip_limiter.limit("20/hour")
 def update_project(
     *,
     project_id: str,
     project_in: ProjectUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:

@@ -1,7 +1,7 @@
 # app/api/v1/endpoints/tasks.py
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -11,14 +11,17 @@ from app.crud import project as project_crud
 from app.models.user import User
 from app.schemas.task import Task, TaskCreate, TaskUpdate, TaskWithSubtasks
 from datetime import datetime
+from app.core.rate_limiting import ip_limiter
 
 router = APIRouter()
 
 
 @router.post("/", response_model=Task)
+@ip_limiter.limit("100/day")
 def create_task(
     *,
     task_in: TaskCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
@@ -120,9 +123,11 @@ def read_task(
 
 
 @router.put("/{task_id}", response_model=Task)
+@ip_limiter.limit("2/minute")
 def update_task(
     *,
     task_id: str,
+    request: Request,
     task_in: TaskUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

@@ -1,7 +1,8 @@
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
+from app.core.rate_limiting import ip_limiter, user_limiter
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -20,7 +21,9 @@ router = APIRouter()
 
 
 @router.post("/signup", response_model=Token)
+@ip_limiter.limit("5/minute")
 def create_user(
+    request: Request,
     user_in: UserCreate,
     db: Session = Depends(get_db),
 ) -> Any:
@@ -48,8 +51,9 @@ def create_user(
 
 
 @router.post("/login", response_model=Token)
+@user_limiter.limit("2/minute")
 def login_access_token(
-    db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()
+    request: Request, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()
 ) -> Any:
     """
     OAuth2 compatible token login, get an access token for future requests.
@@ -121,7 +125,9 @@ def forgot_password(
 
 
 @router.post("/reset-password")
+@user_limiter.limit("1/minute")
 def reset_password(
+    request: Request,
     token: str,
     new_password: str,
     db: Session = Depends(get_db),
