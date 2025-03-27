@@ -26,18 +26,29 @@ def create_task(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
-    Create new task.
+    Create new task with cache management.
     """
-    # Debug: Log the incoming data (optional)
-    print(f"Received task data: {task_in.dict()}")
+    # Verify project ownership before creating task
+    project = project_crud.project.get(db=db, id=task_in.project_id)
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Project not found"
+        )
+    if project.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Not enough permissions"
+        )
 
-    # Project checks...
-
-    # Simply use the Pydantic model's dict method - our TypeDecorator will handle the conversion
+    # Create task
     task_data = task_in.dict()
-
-    # Create the task with the processed dictionary
     task = task_crud.task.create(db=db, obj_in=task_data)
+    
+    # Automatically handled by CRUD method:
+    # - Invalidates project tasks cache
+    # - Clears related cache patterns
+
     return task
 
 
@@ -50,19 +61,23 @@ def read_tasks(
     limit: int = 100,
 ) -> Any:
     """
-    Retrieve tasks.
+    Retrieve tasks with built-in caching.
     """
     if project_id:
         # Check if project belongs to the user
         project = project_crud.project.get(db=db, id=project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Project not found"
             )
         if project.owner_id != current_user.id:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Not enough permissions"
             )
+        
+        # Uses cached method from CRUD layer
         tasks = task_crud.task.get_multi_by_project(
             db=db, project_id=project_id, skip=skip, limit=limit
         )
@@ -81,19 +96,22 @@ def read_tasks_with_subtasks(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
-    Retrieve tasks with their subtasks as a hierarchy.
+    Retrieve tasks with their subtasks as a hierarchy with caching.
     """
     # Check if project belongs to the user
     project = project_crud.project.get(db=db, id=project_id)
     if not project:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Project not found"
         )
     if project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Not enough permissions"
         )
 
+    # Uses cached method from CRUD layer
     tasks = task_crud.task.get_tasks_with_subtasks(db=db, project_id=project_id)
     return tasks
 
@@ -105,19 +123,22 @@ def read_task(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
-    Get task by ID.
+    Get task by ID with caching.
     """
+    # Uses cached method from CRUD layer
     task = task_crud.task.get(db=db, id=task_id)
     if not task:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Task not found"
         )
 
     # Check if project belongs to the user
     project = project_crud.project.get(db=db, id=task.project_id)
     if project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Not enough permissions"
         )
     return task
 
@@ -133,19 +154,21 @@ def update_task(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
-    Update a task.
+    Update a task with cache management.
     """
     task = task_crud.task.get(db=db, id=task_id)
     if not task:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Task not found"
         )
 
     # Check if project belongs to the user
     project = project_crud.project.get(db=db, id=task.project_id)
     if project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Not enough permissions"
         )
 
     # Process update data
@@ -163,7 +186,8 @@ def update_task(
         new_project = project_crud.project.get(db=db, id=task_data["project_id"])
         if not new_project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="New project not found"
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="New project not found"
             )
         if new_project.owner_id != current_user.id:
             raise HTTPException(
@@ -171,6 +195,7 @@ def update_task(
                 detail="Not enough permissions on new project",
             )
 
+    # Uses update method from CRUD that handles cache invalidation
     task = task_crud.task.update(db=db, db_obj=task, obj_in=task_data)
     return task
 
@@ -183,20 +208,23 @@ def delete_task(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
-    Delete a task.
+    Delete a task with cache management.
     """
     task = task_crud.task.get(db=db, id=task_id)
     if not task:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Task not found"
         )
 
     # Check if project belongs to the user
     project = project_crud.project.get(db=db, id=task.project_id)
     if project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Not enough permissions"
         )
 
+    # Uses remove method from CRUD that handles cache invalidation
     task = task_crud.task.remove(db=db, id=task_id)
     return task

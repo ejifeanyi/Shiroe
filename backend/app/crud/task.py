@@ -1,123 +1,81 @@
-from typing import List, Union
-from uuid import UUID
-from datetime import datetime, timedelta
-
+from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.crud.base import CRUDBase
-from app.models.task import Task, TaskStatus
+from app.models.task import Task
 from app.schemas.task import TaskCreate, TaskUpdate
+from app.core.redis_config import cache_with_timeout, invalidate_cache, clear_cache_by_pattern
 
 class CRUDTask(CRUDBase[Task, TaskCreate, TaskUpdate]):
-    def create_with_project(
-        self, db: Session, *, obj_in: TaskCreate, project_id: Union[UUID, str]
-    ) -> Task:
-        # Ensure project_id is a string UUID
-        project_id = str(project_id) if project_id else None
-        obj_in_data = obj_in.dict()
-        db_obj = Task(**obj_in_data, project_id=project_id)
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
-
+    @cache_with_timeout(prefix="task", timeout=3600)
+    def get(self, db: Session, id: str) -> Optional[Task]:
+        """
+        Retrieve a task by ID with Redis caching
+        """
+        return super().get(db=db, id=id)
+    
+    @cache_with_timeout(prefix="tasks_by_project", timeout=1800)
     def get_multi_by_project(
-        self, db: Session, *, project_id: Union[UUID, str], skip: int = 0, limit: int = 100
-    ) -> List[Task]:
-        project_id = str(project_id)
-        return (
-            db.query(Task)
-            .filter(Task.project_id == project_id)
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
-    def get_multi_by_owner(
         self, 
         db: Session, 
-        *, 
-        owner_id: Union[UUID, str], 
+        project_id: str, 
         skip: int = 0, 
         limit: int = 100
     ) -> List[Task]:
-        try:
-            owner_id_str = str(owner_id)
-            
-            return (
-                db.query(Task)
-                .filter(Task.project_id.in_(
-                    db.query(Task.project_id)
-                    .join(Task.project)
-                    .filter(Task.project.has(owner_id=owner_id_str))
-                    .distinct()
-                ))
-                .offset(skip)
-                .limit(limit)
-                .all()
-            )
-        except Exception as e:
-            print(f"Error in get_multi_by_owner: {e}")
-            raise
-
-    def get_tasks_with_subtasks(self, db: Session, *, project_id: UUID) -> List[Task]:
-        # Get all top-level tasks (no parent)
-        tasks = (
-            db.query(Task)
-            .filter(Task.project_id == project_id, Task.parent_task_id.is_(None))
+        """
+        Retrieve multiple tasks for a project with Redis caching
+        """
+        return db.query(self.model)\
+            .filter(self.model.project_id == project_id)\
+            .offset(skip)\
+            .limit(limit)\
             .all()
-        )
-
-        # Build a task hierarchy
-        task_dict = {}
-        all_tasks = db.query(Task).filter(Task.project_id == project_id).all()
-
-        # Create dict with all tasks
-        for task in all_tasks:
-            task_dict[task.id] = task
-            task.subtasks = []
-
-        # Build hierarchy
-        for task in all_tasks:
-            if task.parent_task_id and task.parent_task_id in task_dict:
-                parent = task_dict[task.parent_task_id]
-                parent.subtasks.append(task)
-
-        return tasks
-
-    def get_due_soon_tasks(
-        self, db: Session, *, owner_id: UUID, days: int = 7
-    ) -> List[Task]:
-        today = datetime.utcnow()
-        due_date_cutoff = today + timedelta(days=days)
-
-        return (
-            db.query(Task)
-            .join(Task.project)
+    
+    def create(self, db: Session, *, obj_in: TaskCreate) -> Task:
+        """
+        Create a new task and invalidate relevant caches
+        """
+        task = super().create(db=db, obj_in=obj_in)
+        
+        # Invalidate project tasks cache
+        clear_cache_by_pattern(f"tasks_by_project:{task.project_id}*")
+        
+        return task
+    
+    def update(self, db: Session, *, db_obj: Task, obj_in: TaskUpdate) -> Task:
+        """
+        Update a task and manage cache invalidation
+        """
+        task = super().update(db=db, db_obj=db_obj, obj_in=obj_in)
+        
+        # Invalidate specific task and project tasks cache
+        invalidate_cache("task", str(task.id))
+        clear_cache_by_pattern(f"tasks_by_project:{task.project_id}*")
+        
+        return task
+    
+    def remove(self, db: Session, *, id: str) -> Task:
+        """
+        Remove a task and manage cache invalidation
+        """
+        task = super().get(db=db, id=id)
+        if task:
+            # Invalidate task and project tasks cache before deletion
+            invalidate_cache("task", str(task.id))
+            clear_cache_by_pattern(f"tasks_by_project:{task.project_id}*")
+        
+        return super().remove(db=db, id=id)
+    
+    @cache_with_timeout(prefix="tasks_hierarchy", timeout=1800)
+    def get_tasks_with_subtasks(self, db: Session, project_id: str) -> List[Task]:
+        """
+        Retrieve tasks with subtasks hierarchy for a project with Redis caching
+        """
+        return db.query(self.model)\
             .filter(
-                Task.project.has(owner_id=owner_id),
-                Task.status != TaskStatus.DONE,
-                Task.due_date <= due_date_cutoff,
-                Task.due_date >= today,
-            )
-            .order_by(Task.due_date)
+                self.model.project_id == project_id, 
+                self.model.parent_task_id is None
+            )\
             .all()
-        )
-
-    def get_overdue_tasks(self, db: Session, *, owner_id: UUID) -> List[Task]:
-        today = datetime.utcnow()
-
-        return (
-            db.query(Task)
-            .join(Task.project)
-            .filter(
-                Task.project.has(owner_id=owner_id),
-                Task.status != TaskStatus.DONE,
-                Task.due_date < today,
-            )
-            .order_by(Task.due_date)
-            .all()
-        )
-
 
 task = CRUDTask(Task)

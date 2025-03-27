@@ -1,6 +1,6 @@
 # app/core/config.py
 import os
-from typing import List
+from typing import List, Optional
 
 from pydantic_settings import BaseSettings
 
@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     
     # Reset token settings
     RESET_TOKEN_EXPIRE_MINUTES: int = 15
+
+    REDIS_HOST: str = "redis://default:SjeFlGHPFuuAw4j5R2xwtEbPYb44eUuE@redis-19106.c246.us-east-1-4.ec2.redns.redis-cloud.com:19106" 
+    REDIS_PORT: int = 6379  # Standard Redis port
+    REDIS_PASSWORD: Optional[str] = None  # Password if required
     
     # Frontend URL for reset links
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
