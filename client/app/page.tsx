@@ -1,9 +1,9 @@
-import HeroHeader from "@/components/header";
+import ProjectManagementLanding from "@/components/landing";
 
 export default function Home() {
 	return (
 		<div>
-			<HeroHeader />
+			<ProjectManagementLanding />
 		</div>
 	);
 }
