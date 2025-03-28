@@ -1,7 +1,6 @@
 import { AuthProvider } from "@/context/auth-context";
 import ToastProvider from "./toast-provider";
 import { ThemeProvider } from "./theme-provider";
-import { NotificationProvider } from "@/context/notification-context";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
 	return (
@@ -12,9 +11,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 			disableTransitionOnChange
 		>
 			<AuthProvider>
-				<NotificationProvider>
-					<ToastProvider>{children}</ToastProvider>
-				</NotificationProvider>
+				<ToastProvider>{children}</ToastProvider>
 			</AuthProvider>
 		</ThemeProvider>
 	);
