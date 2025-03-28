@@ -1,8 +1,9 @@
+import HeroHeader from "@/components/header";
 
 export default function Home() {
-  return (
-    <div className="text-2xl">
-      Shiroe
-    </div>
-  );
+	return (
+		<div>
+			<HeroHeader />
+		</div>
+	);
 }
