@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
-import { PlusIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Project } from "@/types/project";
 import {
 	AlertDialog,
@@ -22,6 +20,7 @@ import {
 import ProjectCard from "@/components/project/project-card";
 import UpdateProjectModal from "@/components/project/update-project-modal";
 import CreateProjectModal from "@/components/project/create-project-modal";
+import CreateProjectButton from "@/components/create-project-button";
 
 export default function ProjectsPage() {
 	const router = useRouter();
@@ -117,13 +116,9 @@ export default function ProjectsPage() {
 		<div className="container mx-auto py-8 px-4">
 			<div className="flex justify-between items-center mb-8">
 				<h1 className="text-3xl font-bold">My Projects</h1>
-				<Button
-					onClick={() => setIsCreateModalOpen(true)}
-					className="flex items-center gap-2"
-				>
-					<PlusIcon size={16} />
-					Create Project
-				</Button>
+				<CreateProjectButton onClick={() => setIsCreateModalOpen(true)}>
+					New Project
+				</CreateProjectButton>
 			</div>
 
 			{isLoading ? (
@@ -141,13 +136,12 @@ export default function ProjectsPage() {
 					<p className="text-muted-foreground mb-6 max-w-md">
 						Create your first project to get started organizing your tasks
 					</p>
-					<Button
+					<CreateProjectButton
 						onClick={() => setIsCreateModalOpen(true)}
 						className="flex items-center gap-2"
 					>
-						<PlusIcon size={16} />
-						Create Your First Project
-					</Button>
+						New Project
+					</CreateProjectButton>
 				</div>
 			) : (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

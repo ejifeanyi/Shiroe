@@ -16,14 +16,7 @@ import {
 	DragStartEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
-import {
-	ArrowLeftIcon,
-	CalendarIcon,
-	PencilIcon,
-	Trash2Icon,
-	ClockIcon,
-	PlusIcon,
-} from "lucide-react";
+import { ArrowLeftIcon, CalendarIcon, ClockIcon, PlusIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
