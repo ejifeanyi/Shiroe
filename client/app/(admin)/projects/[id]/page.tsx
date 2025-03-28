@@ -45,6 +45,7 @@ import { Task, TaskStatus } from "@/types/task";
 import { Project } from "@/types/project";
 import TaskModal from "@/components/task/task-model";
 import TaskColumn from "@/components/task/task-column";
+import ProjectActionsDropdown from "@/components/project-action-dropdown";
 
 export default function ProjectTasksPage() {
 	const params = useParams();
@@ -468,22 +469,10 @@ export default function ProjectTasksPage() {
 								<PlusIcon size={16} />
 								Add Task
 							</Button>
-							<Button
-								variant="outline"
-								className="flex items-center gap-2"
-								onClick={() => setIsUpdateModalOpen(true)}
-							>
-								<PencilIcon size={16} />
-								Edit
-							</Button>
-							<Button
-								variant="destructive"
-								className="flex items-center gap-2"
-								onClick={() => setIsDeleteDialogOpen(true)}
-							>
-								<Trash2Icon size={16} />
-								Delete
-							</Button>
+							<ProjectActionsDropdown
+								onEdit={() => setIsUpdateModalOpen(true)}
+								onDelete={() => setIsDeleteDialogOpen(true)}
+							/>
 						</div>
 					</div>
 
