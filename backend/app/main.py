@@ -7,7 +7,6 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.database import engine
-from app.core.scheduler import setup_scheduler
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -75,7 +74,6 @@ def health_check():
 def startup_event():
     logger.info("Initializing service")
     create_tables()
-    setup_scheduler() 
     logger.info("Service started")
 
 
