@@ -4,15 +4,10 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "./theme-toggle";
 
-import { Search, User, Calendar } from "lucide-react";
+import { Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+
 import { toast } from "sonner";
 
 import PriorityTasksButton from "./priority-task-button";
@@ -23,15 +18,7 @@ import { Project } from "@/types/project";
 
 const Navbar: React.FC = () => {
 	const router = useRouter();
-	const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-	const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
-	const handleDateSelect = (date: Date | undefined) => {
-		setSelectedDate(date);
-		// TODO: Implement task fetching for the selected date
-		console.log("Selected date:", date);
-	};
 
 	const handleCreateSuccess = (newProject: Project) => {
 		setIsCreateModalOpen(false);
@@ -57,24 +44,6 @@ const Navbar: React.FC = () => {
 							New Project
 						</CreateProjectButton>
 						<PriorityTasksButton />
-						<Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-							<PopoverTrigger asChild>
-								<Button variant="ghost" size="icon" aria-label="Open calendar">
-									<Calendar className="h-5 w-5" />
-								</Button>
-							</PopoverTrigger>
-							<PopoverContent className="w-auto p-0" align="start">
-								<CalendarComponent
-									mode="single"
-									selected={selectedDate}
-									onSelect={(date) => {
-										handleDateSelect(date);
-										setIsCalendarOpen(false);
-									}}
-									className="rounded-md border shadow"
-								/>
-							</PopoverContent>
-						</Popover>
 
 						<Button
 							variant="ghost"
