@@ -1,7 +1,6 @@
 from sqlalchemy import TypeDecorator, Date
 from datetime import datetime, date
 
-
 class CustomDate(TypeDecorator):
     """Custom Date type for SQLAlchemy that ensures proper date conversion"""
 

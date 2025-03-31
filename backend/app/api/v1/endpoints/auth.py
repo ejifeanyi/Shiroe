@@ -17,68 +17,47 @@ from app.schemas.user import UserOut as UserSchema, UserCreate
 from app.schemas.email import PasswordResetRequest
 from app.utils.email import send_reset_password_email
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
 router = APIRouter()
 
 
 @router.post("/signup", response_model=Token)
 @ip_limiter.limit("5/minute")
-def create_user(
+async def create_user(
     request: Request,
     user_in: UserCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """
-    Create new user and return an access token.
-    """
-    user = user_crud.user.get_by_email(db, email=user_in.email)
+    user = await user_crud.user.get_by_email(db, email=user_in.email)
     if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this email already exists in the system.",
-        )
-    user = user_crud.user.create(db, obj_in=user_in)
+        raise HTTPException(status_code=400, detail="The user with this email already exists.")
     
-    # Generate access token for the new user
+    user = await user_crud.user.create(db, obj_in=user_in)
+    
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        user.id, expires_delta=access_token_expires
-    )
+    access_token = create_access_token(user.id, expires_delta=access_token_expires)
     
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-    }
-
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/login", response_model=Token)
 @user_limiter.limit("2/minute")
-def login_access_token(
-    request: Request, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()
+async def login_access_token(
+    request: Request, 
+    db: AsyncSession = Depends(get_db), 
+    form_data: OAuth2PasswordRequestForm = Depends()
 ) -> Any:
-    """
-    OAuth2 compatible token login, get an access token for future requests.
-    """
-    user = user_crud.user.authenticate(
-        db, email=form_data.username, password=form_data.password
-    )
+    user = await user_crud.user.authenticate(db, email=form_data.username, password=form_data.password)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Inactive user",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise HTTPException(status_code=401, detail="Inactive user")
+    
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return {
-        "access_token": create_access_token(
-            user.id, expires_delta=access_token_expires
-        ),
-        "token_type": "bearer",
+        "access_token": create_access_token(user.id, expires_delta=access_token_expires),
+        "token_type": "bearer"
     }
 
 

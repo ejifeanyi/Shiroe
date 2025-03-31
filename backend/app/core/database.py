@@ -1,14 +1,18 @@
-from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.types import TypeDecorator, CHAR
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
+from sqlalchemy.pool import NullPool
 
-from app.core.config import settings
+from app.core.config import settings   
 
 class GUID(TypeDecorator):
-    """Platform-independent GUID type with robust error handling."""
+    """Platform-independent GUID type.
+    
+    Uses PostgreSQL's UUID type, otherwise uses
+    CHAR(32), storing as stringified hex values.
+    """
     impl = CHAR
     cache_ok = True
 
@@ -16,57 +20,44 @@ class GUID(TypeDecorator):
         if dialect.name == "postgresql":
             return dialect.type_descriptor(UUID())
         else:
-            return dialect.type_descriptor(CHAR(36))
+            return dialect.type_descriptor(CHAR(32))
 
     def process_bind_param(self, value, dialect):
         if value is None:
             return value
-        
-        try:
-            if isinstance(value, uuid.UUID):
-                return str(value)
-            
-            if isinstance(value, str):
-                value = value.strip("'\"")
-                
-                try:
-                    parsed_uuid = uuid.UUID(value)
-                    return str(parsed_uuid)
-                except ValueError:
-                    try:
-                        return str(uuid.uuid5(uuid.NAMESPACE_DNS, value))
-                    except Exception:
-                        raise ValueError(f"Cannot convert value to UUID: {value}")
-            
-            return str(uuid.uuid4())
-        
-        except Exception as e:
-            print(f"UUID Conversion Error: {e}")
-            raise
+        elif dialect.name == 'postgresql':
+            return str(value)
+        else:
+            if not isinstance(value, uuid.UUID):
+                return str(uuid.UUID(value)).replace('-', '')
+            else:
+                return str(value).replace('-', '')
 
     def process_result_value(self, value, dialect):
         if value is None:
             return value
-        
-        try:
-            return uuid.UUID(value) if value else None
-        except Exception as e:
-            print(f"UUID Result Conversion Error: {e}")
+        else:
+            if not isinstance(value, uuid.UUID):
+                value = uuid.UUID(value)
             return value
-    
-engine = create_engine(
-    settings.SQLALCHEMY_DATABASE_URI,
-    connect_args={"check_same_thread": False},
+
+# Create async engine (remove check_same_thread as it's SQLite-specific)
+engine = create_async_engine(
+    settings.DATABASE_URL,  # Make sure this uses postgresql+asyncpg://
+    echo=True,  # Set to False in production
+    poolclass=NullPool  # Recommended for async SQLAlchemy
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Async session factory
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False
+)
 
 Base = declarative_base()
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session

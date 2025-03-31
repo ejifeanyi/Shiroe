@@ -4,14 +4,16 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.crud import task as task_crud
 from app.crud import project as project_crud
-from app.models.task import TaskStatus, TaskPriority
+from app.models.task import Task, TaskStatus, TaskPriority
+from app.models.project import Project
 from app.models.user import User
 
 router = APIRouter()
@@ -65,83 +67,93 @@ def convert_sqlalchemy_model(obj):
 
 
 @router.get("/", response_model=DashboardResponse)
-def get_dashboard(
-    db: Session = Depends(get_db),
+async def get_dashboard(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Get dashboard overview data.
     """
     # Get projects with task counts
-    projects = project_crud.project.get_projects_with_task_counts(
+    projects = await project_crud.project.get_projects_with_task_counts(
         db=db, owner_id=current_user.id, limit=5
     )
     
     # Get today's tasks
     today = datetime.utcnow().date()
     tomorrow = today + timedelta(days=1)
-    today_tasks = (
-        db.query(task_crud.task.model)
-        .join(task_crud.task.model.project)
-        .filter(
-            task_crud.task.model.project.has(owner_id=current_user.id),
-            task_crud.task.model.status != TaskStatus.DONE,
-            task_crud.task.model.due_date >= today,
-            task_crud.task.model.due_date < tomorrow,
+    
+    today_query = (
+        select(Task)
+        .join(Task.project)
+        .where(
+            Project.owner_id == current_user.id,
+            Task.status != TaskStatus.DONE,
+            Task.due_date >= today,
+            Task.due_date < tomorrow,
         )
-        .all()
     )
+    result = await db.execute(today_query)
+    today_tasks = result.scalars().all()
 
     # Get overdue tasks
-    overdue_tasks = (
-        db.query(task_crud.task.model)
-        .join(task_crud.task.model.project)
-        .filter(
-            task_crud.task.model.project.has(owner_id=current_user.id),
-            task_crud.task.model.status != TaskStatus.DONE,
-            task_crud.task.model.due_date < today,
+    overdue_query = (
+        select(Task)
+        .join(Task.project)
+        .where(
+            Project.owner_id == current_user.id,
+            Task.status != TaskStatus.DONE,
+            Task.due_date < today,
         )
-        .all()
     )
+    result = await db.execute(overdue_query)
+    overdue_tasks = result.scalars().all()
 
     # Get upcoming tasks (next 7 days)
     next_week = today + timedelta(days=7)
-    upcoming_tasks = (
-        db.query(task_crud.task.model)
-        .join(task_crud.task.model.project)
-        .filter(
-            task_crud.task.model.project.has(owner_id=current_user.id),
-            task_crud.task.model.status != TaskStatus.DONE,
-            task_crud.task.model.due_date >= tomorrow,
-            task_crud.task.model.due_date <= next_week,
+    upcoming_query = (
+        select(Task)
+        .join(Task.project)
+        .where(
+            Project.owner_id == current_user.id,
+            Task.status != TaskStatus.DONE,
+            Task.due_date >= tomorrow,
+            Task.due_date <= next_week,
         )
-        .order_by(task_crud.task.model.due_date)
-        .all()
+        .order_by(Task.due_date)
     )
+    result = await db.execute(upcoming_query)
+    upcoming_tasks = result.scalars().all()
 
     # Get total stats
-    total_projects = (
-        db.query(project_crud.project.model)
-        .filter(project_crud.project.model.owner_id == current_user.id)
-        .count()
+    total_projects_query = (
+        select(func.count())
+        .select_from(Project)
+        .where(Project.owner_id == current_user.id)
     )
+    result = await db.execute(total_projects_query)
+    total_projects = result.scalar()
 
-    total_tasks = (
-        db.query(task_crud.task.model)
-        .join(task_crud.task.model.project)
-        .filter(task_crud.task.model.project.has(owner_id=current_user.id))
-        .count()
+    total_tasks_query = (
+        select(func.count())
+        .select_from(Task)
+        .join(Task.project)
+        .where(Project.owner_id == current_user.id)
     )
+    result = await db.execute(total_tasks_query)
+    total_tasks = result.scalar()
 
-    completed_tasks = (
-        db.query(task_crud.task.model)
-        .join(task_crud.task.model.project)
-        .filter(
-            task_crud.task.model.project.has(owner_id=current_user.id),
-            task_crud.task.model.status == TaskStatus.DONE,
+    completed_tasks_query = (
+        select(func.count())
+        .select_from(Task)
+        .join(Task.project)
+        .where(
+            Project.owner_id == current_user.id,
+            Task.status == TaskStatus.DONE,
         )
-        .count()
     )
+    result = await db.execute(completed_tasks_query)
+    completed_tasks = result.scalar()
 
     # Convert SQLAlchemy models to Pydantic-compatible dicts
     today_tasks_dicts = [convert_sqlalchemy_model(task) for task in today_tasks]

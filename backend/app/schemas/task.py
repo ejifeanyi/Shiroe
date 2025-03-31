@@ -11,7 +11,7 @@ class TaskBase(BaseModel):
     description: Optional[str] = None
     status: Optional[TaskStatus] = TaskStatus.TODO
     priority: Optional[TaskPriority] = TaskPriority.MEDIUM
-    due_date: Optional[date] = None  # Changed from datetime to date
+    due_date: Optional[date] = None
     order: Optional[int] = 0
 
     # Add a validator to convert string dates to date objects
@@ -53,7 +53,7 @@ class TaskInDBBase(TaskBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated from orm_mode = True
 
 
 class Task(TaskInDBBase):

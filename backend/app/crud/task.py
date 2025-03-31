@@ -1,81 +1,107 @@
-from typing import List, Optional
-from sqlalchemy.orm import Session
+# app/crud/task.py
+from typing import List, Optional, Union, Dict, Any
 
 from app.crud.base import CRUDBase
 from app.models.task import Task
+from app.models.project import Project
 from app.schemas.task import TaskCreate, TaskUpdate
 from app.core.redis_config import cache_with_timeout, invalidate_cache, clear_cache_by_pattern
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 class CRUDTask(CRUDBase[Task, TaskCreate, TaskUpdate]):
     @cache_with_timeout(prefix="task", timeout=3600)
-    def get(self, db: Session, id: str) -> Optional[Task]:
-        """
-        Retrieve a task by ID with Redis caching
-        """
-        return super().get(db=db, id=id)
+    async def get(self, db: AsyncSession, id: str) -> Optional[Task]:
+        result = await db.execute(select(self.model).where(self.model.id == id))
+        return result.scalars().first()
     
     @cache_with_timeout(prefix="tasks_by_project", timeout=1800)
-    def get_multi_by_project(
+    async def get_multi_by_project(
         self, 
-        db: Session, 
+        db: AsyncSession, 
         project_id: str, 
         skip: int = 0, 
         limit: int = 100
     ) -> List[Task]:
-        """
-        Retrieve multiple tasks for a project with Redis caching
-        """
-        return db.query(self.model)\
-            .filter(self.model.project_id == project_id)\
-            .offset(skip)\
-            .limit(limit)\
-            .all()
+        result = await db.execute(
+            select(self.model)
+            .where(self.model.project_id == project_id)
+            .offset(skip)
+            .limit(limit)
+        )
+        return result.scalars().all()
     
-    def create(self, db: Session, *, obj_in: TaskCreate) -> Task:
-        """
-        Create a new task and invalidate relevant caches
-        """
-        task = super().create(db=db, obj_in=obj_in)
+    async def get_multi_by_owner(
+        self,
+        db: AsyncSession,
+        owner_id: str,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Task]:
+        # This would join with projects to filter by owner
+        # For example:
+        result = await db.execute(
+            select(self.model)
+            .join(self.model.project)  # Assuming there's a relationship defined
+            .where(Project.owner_id == owner_id)  # You'll need to import Project
+            .offset(skip)
+            .limit(limit)
+        )
+        return result.scalars().all()
+    
+    async def create(self, db: AsyncSession, *, obj_in: TaskCreate) -> Task:
+        db_obj = self.model(**obj_in.dict())
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
         
         # Invalidate project tasks cache
-        clear_cache_by_pattern(f"tasks_by_project:{task.project_id}*")
-        
-        return task
+        await clear_cache_by_pattern(f"tasks_by_project:{db_obj.project_id}*")
+        return db_obj
     
-    def update(self, db: Session, *, db_obj: Task, obj_in: TaskUpdate) -> Task:
-        """
-        Update a task and manage cache invalidation
-        """
-        task = super().update(db=db, db_obj=db_obj, obj_in=obj_in)
+    async def update(self, db: AsyncSession, *, db_obj: Task, obj_in: Union[TaskUpdate, Dict[str, Any]]) -> Task:
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.dict(exclude_unset=True)
         
-        # Invalidate specific task and project tasks cache
-        invalidate_cache("task", str(task.id))
-        clear_cache_by_pattern(f"tasks_by_project:{task.project_id}*")
+        # Rest of your update logic
+        for field in update_data:
+            setattr(db_obj, field, update_data[field])
         
-        return task
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
+        
+        # Invalidate caches
+        await invalidate_cache("task", str(db_obj.id))
+        await clear_cache_by_pattern(f"tasks_by_project:{db_obj.project_id}*")
+        return db_obj
     
-    def remove(self, db: Session, *, id: str) -> Task:
-        """
-        Remove a task and manage cache invalidation
-        """
-        task = super().get(db=db, id=id)
+    async def remove(self, db: AsyncSession, *, id: str) -> Task:
+        result = await db.execute(select(self.model).where(self.model.id == id))
+        task = result.scalars().first()
         if task:
-            # Invalidate task and project tasks cache before deletion
-            invalidate_cache("task", str(task.id))
-            clear_cache_by_pattern(f"tasks_by_project:{task.project_id}*")
-        
-        return super().remove(db=db, id=id)
+            # Invalidate caches before deletion
+            await invalidate_cache("task", str(task.id))
+            await clear_cache_by_pattern(f"tasks_by_project:{task.project_id}*")
+            await db.delete(task)
+            await db.commit()
+        return task
     
     @cache_with_timeout(prefix="tasks_hierarchy", timeout=1800)
-    def get_tasks_with_subtasks(self, db: Session, project_id: str) -> List[Task]:
-        """
-        Retrieve tasks with subtasks hierarchy for a project with Redis caching
-        """
-        return db.query(self.model)\
-            .filter(
-                self.model.project_id == project_id, 
-                self.model.parent_task_id is None
-            )\
-            .all()
+    async def get_tasks_with_subtasks(self, db: AsyncSession, project_id: str) -> List[Task]:
+        result = await db.execute(
+            select(self.model)
+            .where(
+                self.model.project_id == project_id,
+                self.model.parent_task_id.is_(None)
+            )
+            .options(selectinload(self.model.subtasks))
+        )
+        return result.scalars().all()
 
-task = CRUDTask(Task)
+# Create an instance of the CRUD class to be imported elsewhere
+task_crud = CRUDTask(Task)

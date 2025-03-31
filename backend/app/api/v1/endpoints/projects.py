@@ -2,11 +2,11 @@ from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from app.core.rate_limiting import ip_limiter
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
-from app.crud import project as project_crud
+from app.crud.project import project_crud
 from app.models.user import User
 from app.schemas.project import (
     Project,
@@ -20,25 +20,25 @@ router = APIRouter()
 
 @router.post("/", response_model=Project)
 @ip_limiter.limit("20/hour")
-def create_project(
+async def create_project(
     *,
     project_in: ProjectCreate,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Create new project.
     """
-    project = project_crud.project.create_with_owner(
+    project = await project_crud.create_with_owner(
         db=db, obj_in=project_in, owner_id=current_user.id
     )
     return project
 
 
 @router.get("/", response_model=List[ProjectWithTaskCount])
-def read_projects(
-    db: Session = Depends(get_db),
+async def read_projects(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     skip: int = 0,
     limit: int = 100,
@@ -46,23 +46,27 @@ def read_projects(
     """
     Retrieve projects with task counts.
     """
-    projects = project_crud.project.get_projects_with_task_counts(
+    projects = await project_crud.get_projects_with_task_counts(
         db=db, owner_id=current_user.id, skip=skip, limit=limit
     )
+    
+    # Important: Make sure each project dict matches your ProjectWithTaskCount schema
+    # Note that in your schema, you have "total_tasks" and "completed_tasks" fields
+    # which need to be present in each project dict
     return projects
 
 
 @router.get("/{project_id}", response_model=Project)
-def read_project(
+async def read_project(
     *,
     project_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Get project by ID.
     """
-    project = project_crud.project.get(db=db, id=project_id)
+    project = await project_crud.get(db=db, id=project_id)
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
@@ -76,18 +80,18 @@ def read_project(
 
 @router.put("/{project_id}", response_model=Project)
 @ip_limiter.limit("20/hour")
-def update_project(
+async def update_project(
     *,
     project_id: str,
     project_in: ProjectUpdate,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Update a project.
     """
-    project = project_crud.project.get(db=db, id=project_id)
+    project = await project_crud.get(db=db, id=project_id)
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
@@ -96,21 +100,21 @@ def update_project(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
         )
-    project = project_crud.project.update(db=db, db_obj=project, obj_in=project_in)
+    project = await project_crud.update(db=db, db_obj=project, obj_in=project_in)
     return project
 
 
 @router.delete("/{project_id}", response_model=Project)
-def delete_project(
+async def delete_project(
     *,
     project_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Delete a project.
     """
-    project = project_crud.project.get(db=db, id=project_id)
+    project = await project_crud.get(db=db, id=project_id)
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
@@ -119,5 +123,5 @@ def delete_project(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
         )
-    project = project_crud.project.remove(db=db, id=project_id)
+    project = await project_crud.remove(db=db, id=project_id)
     return project

@@ -1,3 +1,4 @@
+# app/schemas/user.py
 from typing import Optional
 from pydantic import BaseModel, EmailStr, UUID4, Field
 from datetime import datetime
@@ -29,7 +30,7 @@ class UserInDBBase(UserBase):
     profile_picture_url: Optional[str] = None
 
     class Config:
-        from_attributes = True
+        from_attributes = True  # Updated from orm_mode = True
 
 class UserOut(UserInDBBase):
     pass

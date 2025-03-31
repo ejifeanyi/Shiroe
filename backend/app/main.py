@@ -7,6 +7,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.database import engine
+from app.core.redis_config import initialize_redis
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -19,11 +20,12 @@ logger = logging.getLogger(__name__)
 
 
 # Create tables in the database
-def create_tables():
+async def create_tables():
     logger.info("Creating database tables")
     from app.core.database import Base
 
-    Base.metadata.create_all(bind=engine)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables created")
 
 
@@ -68,12 +70,12 @@ def health_check():
     """Health check endpoint for monitoring and load balancers"""
     return {"status": "healthy"}
 
-
 # Startup event to initialize database
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
+    await initialize_redis()
     logger.info("Initializing service")
-    create_tables()
+    await create_tables()
     logger.info("Service started")
 
 

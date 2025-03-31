@@ -30,7 +30,7 @@ class Settings(BaseSettings):
 
     # Database settings
     # Default to SQLite for development
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./shiroe.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://neondb_owner:npg_d7YmGz5vasDB@ep-square-pine-a53qtaa8-pooler.us-east-2.aws.neon.tech/neondb?ssl=require")
     SQLALCHEMY_DATABASE_URI: str = DATABASE_URL
 
     TIMEZONE: str = "UTC"

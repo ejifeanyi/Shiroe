@@ -1,36 +1,45 @@
-import redis
+import redis.asyncio as redis
 from redis.exceptions import RedisError
 from functools import wraps
 import json
+import asyncio
 from typing import Any, Callable, Optional
 
-# Initialize Redis client
+# Configure logging
 import logging
 from urllib.parse import urlparse
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-try:
-    redis_url = "redis://default:SjeFlGHPFuuAw4j5R2xwtEbPYb44eUuE@redis-19106.c246.us-east-1-4.ec2.redns.redis-cloud.com:19106"
-    url = urlparse(redis_url)
-    
-    redis_client = redis.Redis(
-        host=url.hostname,
-        port=url.port,
-        username=url.username or 'default',
-        password=url.password,
-        db=0,
-        decode_responses=True
-    )
-    
-    # Ping to verify connection
-    redis_client.ping()
-    logger.info("Redis connection established successfully")
-except RedisError as e:
-    logger.error(f"Redis connection error: {e}")
-    redis_client = None
+# Initialize Redis client
+redis_client = None
+
+async def initialize_redis():
+    global redis_client
+    try:
+        redis_url = "redis://default:SjeFlGHPFuuAw4j5R2xwtEbPYb44eUuE@redis-19106.c246.us-east-1-4.ec2.redns.redis-cloud.com:19106"
+        url = urlparse(redis_url)
+        
+        redis_client = redis.Redis(
+            host=url.hostname,
+            port=url.port,
+            username=url.username or 'default',
+            password=url.password,
+            db=0,
+            decode_responses=True
+        )
+        
+        # Ping to verify connection (properly awaited)
+        await redis_client.ping()
+        logger.info("Redis connection established successfully")
+        return redis_client
+    except RedisError as e:
+        logger.error(f"Redis connection error: {e}")
+        return None
+
+# This will be called during application startup
+asyncio.create_task(initialize_redis())
 
 def cache_with_timeout(
     prefix: str, 
@@ -46,10 +55,10 @@ def cache_with_timeout(
     """
     def decorator(func):
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        async def wrapper(*args, **kwargs):
             # Skip caching if Redis is not available
             if not redis_client:
-                return func(*args, **kwargs)
+                return await func(*args, **kwargs)
             
             # Generate cache key
             if key_generator:
@@ -63,30 +72,30 @@ def cache_with_timeout(
             
             # Try to get from cache
             try:
-                cached_result = redis_client.get(cache_key)
+                cached_result = await redis_client.get(cache_key)
                 if cached_result:
                     return json.loads(cached_result)
             except Exception as e:
-                print(f"Redis cache retrieval error: {e}")
+                logger.error(f"Redis cache retrieval error: {e}")
             
             # Call the original function
-            result = func(*args, **kwargs)
+            result = await func(*args, **kwargs)
             
             # Cache the result
             try:
-                redis_client.setex(
+                await redis_client.setex(
                     cache_key, 
                     timeout, 
                     json.dumps(result, default=str)
                 )
             except Exception as e:
-                print(f"Redis cache storage error: {e}")
+                logger.error(f"Redis cache storage error: {e}")
             
             return result
         return wrapper
     return decorator
 
-def invalidate_cache(prefix: str, key: str):
+async def invalidate_cache(prefix: str, key: str):
     """
     Invalidate a specific cache entry
     
@@ -98,11 +107,11 @@ def invalidate_cache(prefix: str, key: str):
     
     full_key = f"{prefix}:{key}"
     try:
-        redis_client.delete(full_key)
+        await redis_client.delete(full_key)
     except RedisError as e:
-        print(f"Redis cache invalidation error: {e}")
+        logger.error(f"Redis cache invalidation error: {e}")
 
-def clear_cache_by_pattern(pattern: str):
+async def clear_cache_by_pattern(pattern: str):
     """
     Clear multiple cache entries matching a pattern
     
@@ -113,10 +122,10 @@ def clear_cache_by_pattern(pattern: str):
     
     try:
         # Find all matching keys
-        matching_keys = redis_client.keys(pattern)
+        matching_keys = await redis_client.keys(pattern)
         
         # Delete all matching keys
         if matching_keys:
-            redis_client.delete(*matching_keys)
+            await redis_client.delete(*matching_keys)
     except RedisError as e:
-        print(f"Redis cache pattern deletion error: {e}")
+        logger.error(f"Redis cache pattern deletion error: {e}")

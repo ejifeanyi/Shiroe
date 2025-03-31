@@ -21,4 +21,3 @@ class User(Base):
 
     # Relationships
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
-    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
