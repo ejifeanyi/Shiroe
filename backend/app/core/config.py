@@ -1,6 +1,5 @@
-# app/core/config.py
 import os
-from typing import List, Optional
+from typing import List
 
 from pydantic_settings import BaseSettings
 
@@ -21,19 +20,14 @@ class Settings(BaseSettings):
     # Reset token settings
     RESET_TOKEN_EXPIRE_MINUTES: int = 15
 
-    REDIS_HOST: str = "redis://default:SjeFlGHPFuuAw4j5R2xwtEbPYb44eUuE@redis-19106.c246.us-east-1-4.ec2.redns.redis-cloud.com:19106" 
-    REDIS_PORT: int = 6379  # Standard Redis port
-    REDIS_PASSWORD: Optional[str] = None  # Password if required
+    # Redis settings
+    REDIS_URL: str = os.getenv("REDIS_URL", "")
     
     # Frontend URL for reset links
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
     # Database settings
-    # Default to SQLite for development
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://neondb_owner:npg_d7YmGz5vasDB@ep-square-pine-a53qtaa8-pooler.us-east-2.aws.neon.tech/neondb?ssl=require")
-    SQLALCHEMY_DATABASE_URI: str = DATABASE_URL
-
-    TIMEZONE: str = "UTC"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
     
     # Email settings with updated field names
     MAIL_USERNAME: str = "test@example.com"
@@ -42,13 +36,18 @@ class Settings(BaseSettings):
     MAIL_PORT: int = 587
     MAIL_SERVER: str = "smtp.example.com"
     # Updated field names for fastapi-mail
-    MAIL_STARTTLS: bool = "true"
-    MAIL_SSL_TLS: bool = "true"
-    MAIL_USE_CREDENTIALS: bool = "true"
+    MAIL_STARTTLS: bool = True
+    MAIL_SSL_TLS: bool = True
+    MAIL_USE_CREDENTIALS: bool = True
 
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Allow extra fields without error
+
+    @property
+    def SQLALCHEMY_DATABASE_URI(self) -> str:
+        return self.DATABASE_URL
 
 
 settings = Settings()

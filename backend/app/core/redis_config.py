@@ -2,12 +2,13 @@ import redis.asyncio as redis
 from redis.exceptions import RedisError
 from functools import wraps
 import json
-import asyncio
 from typing import Any, Callable, Optional
 
 # Configure logging
 import logging
 from urllib.parse import urlparse
+
+from app.core.config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,7 +19,11 @@ redis_client = None
 async def initialize_redis():
     global redis_client
     try:
-        redis_url = "redis://default:SjeFlGHPFuuAw4j5R2xwtEbPYb44eUuE@redis-19106.c246.us-east-1-4.ec2.redns.redis-cloud.com:19106"
+        redis_url = settings.REDIS_URL
+        if not redis_url:
+            logger.warning("REDIS_URL not set, Redis caching will be disabled")
+            return None
+            
         url = urlparse(redis_url)
         
         redis_client = redis.Redis(
@@ -37,9 +42,6 @@ async def initialize_redis():
     except RedisError as e:
         logger.error(f"Redis connection error: {e}")
         return None
-
-# This will be called during application startup
-asyncio.create_task(initialize_redis())
 
 def cache_with_timeout(
     prefix: str, 
